@@ -1,0 +1,98 @@
+<title>Barako rozetė</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: vienas stulpelis – riba ir skaitiklis viršuje, po juo prietaisai */
+:root{
+  --bg:#eef0ec; --panel:#ffffff; --fg:#1d2420; --muted:#5d6862; --line:#d4d9d3;
+  --ok:#2f8a4b; --bad:#c4382c; --accent:#2b4f8f;
+  --display:"Archivo",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141816; --panel:#1d2320; --fg:#e7ece8; --muted:#9aa59f; --line:#323a36;
+  --ok:#4cbb6c; --bad:#ef6252; --accent:#7ea4e6; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141816; --panel:#1d2320; --fg:#e7ece8; --muted:#9aa59f; --line:#323a36;
+  --ok:#4cbb6c; --bad:#ef6252; --accent:#7ea4e6; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:640px;margin:0 auto;display:grid;gap:16px}
+h1{font-size:1.6rem;font-weight:800;margin:0;letter-spacing:-.01em}
+.limit{font-family:var(--mono);font-size:1.1rem;font-weight:700;margin:4px 0 0}
+.limit span{color:var(--bad)}
+.meter{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.mtop{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.watts{font-family:var(--mono);font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums}
+.watts small{font-size:.9rem;color:var(--muted);font-weight:500}
+.status{font-weight:800;font-size:.95rem;padding:4px 12px;border-radius:999px;color:#fff}
+.bar{position:relative;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--ok) 0 76.6%,var(--bad) 76.6% 100%)}
+.needle{position:absolute;top:-5px;width:4px;height:24px;background:var(--fg);border-radius:2px;transform:translateX(-2px);transition:left .25s}
+.scale{position:relative;height:1em;font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.scale span{position:absolute;transform:translateX(-50%)}
+.scale span:first-child{transform:none}
+.scale span:last-child{transform:translateX(-100%)}
+.list{display:grid;gap:10px}
+.dev{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;user-select:none}
+.dev input{width:22px;height:22px;accent-color:var(--accent)}
+.dev:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.dev:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.name{font-weight:600}
+.w{font-family:var(--mono);font-size:.9rem;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.reset{justify-self:start;font:inherit;font-weight:600;background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:6px 12px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.needle{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Kas įjungta į rozetę?</h1>
+    <p class="limit">Riba: <span>2300 W</span> kartu</p>
+  </header>
+
+  <section class="meter" aria-live="polite">
+    <div class="mtop">
+      <div class="watts"><span id="total">0</span> <small>/ 2300 W</small></div>
+      <span class="status" id="status">Galima</span>
+    </div>
+    <div class="bar"><div class="needle" id="needle" style="left:0%"></div></div>
+    <div class="scale"><span style="left:0">0</span><span style="left:76.6%">2300</span><span style="left:100%">3000</span></div>
+  </section>
+
+  <section class="list" id="list"></section>
+  <button class="reset" id="reset" type="button">Išjungti viską</button>
+</div>
+
+<script>
+const LIMIT=2300;
+const devices=[
+  {id:"fridge",name:"Šaldytuvas",w:120,on:true},
+  {id:"kettle",name:"Virdulys",w:2000},
+  {id:"fryer",name:"Air fryeris",w:1500},
+  {id:"dryer",name:"Plaukų džiovintuvas",w:1800},
+  {id:"straight",name:"Plaukų tiesintuvas",w:100},
+  {id:"laptop",name:"Kompiuterio pakrovėjas",w:65},
+  {id:"lamp",name:"Stalo lempa",w:10},
+  {id:"phone",name:"Telefono pakrovėjas",w:20},
+];
+const list=document.getElementById("list");
+devices.forEach(d=>{
+  const l=document.createElement("label");l.className="dev";
+  l.innerHTML=`<input type="checkbox" id="d-${d.id}" ${d.on?"checked":""}><div class="name">${d.name}</div><div class="w">${d.w} W</div>`;
+  list.appendChild(l);
+});
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
+function update(){
+  const t=devices.filter(d=>document.getElementById("d-"+d.id).checked).reduce((s,d)=>s+d.w,0);
+  document.getElementById("total").textContent=t;
+  document.getElementById("needle").style.left=Math.min(t/3000*100,100)+"%";
+  const st=document.getElementById("status");
+  const bad=t>LIMIT;
+  st.textContent=bad?"Per daug – išjunk ką nors":"Galima";
+  st.style.background=css(bad?"--bad":"--ok");
+}
+list.addEventListener("change",update);
+document.getElementById("reset").onclick=()=>{devices.forEach(d=>document.getElementById("d-"+d.id).checked=false);update();};
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",update);
+update();
+</script>
